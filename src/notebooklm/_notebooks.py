@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any
 
 from ._core import ClientCore
 from .rpc import RPCMethod
-from .types import Notebook, NotebookDescription, SuggestedTopic
+from .types import Notebook, NotebookDescription, NotebookMetadata, SourceSummary, SuggestedTopic
 
 if TYPE_CHECKING:
     from ._sources import SourcesAPI
@@ -311,7 +311,7 @@ class NotebooksAPI:
             return f"{base_url}?artifactId={artifact_id}"
         return base_url
 
-    async def get_metadata(self, notebook_id: str):
+    async def get_metadata(self, notebook_id: str) -> NotebookMetadata:
         """Get notebook metadata with sources list.
 
         This combines notebook details with a simplified sources list,
@@ -349,8 +349,6 @@ class NotebooksAPI:
             )
 
         # Build simplified source info
-        from .types import NotebookMetadata, SourceSummary
-
         simplified_sources = [
             SourceSummary(
                 kind=source.kind,
