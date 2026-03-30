@@ -180,7 +180,22 @@ def note_save(ctx, note_id, notebook_id, title, content, client_auth):
         async with NotebookLMClient(client_auth) as client:
             nb_id_resolved = await resolve_notebook_id(client, nb_id)
             resolved_id = await resolve_note_id(client, nb_id_resolved, note_id)
-            await client.notes.update(nb_id_resolved, resolved_id, content=content, title=title)
+
+            # Fetch existing note to preserve fields not being updated
+            if title is None or content is None:
+                n = await client.notes.get(nb_id_resolved, resolved_id)
+                if not n or not isinstance(n, Note):
+                    console.print("[yellow]Note not found[/yellow]")
+                    return
+                effective_title = title if title is not None else (n.title or "")
+                effective_content = content if content is not None else (n.content or "")
+            else:
+                effective_title = title
+                effective_content = content
+
+            await client.notes.update(
+                nb_id_resolved, resolved_id, content=effective_content, title=effective_title
+            )
             console.print(f"[green]Note updated:[/green] {resolved_id}")
 
     return _run()

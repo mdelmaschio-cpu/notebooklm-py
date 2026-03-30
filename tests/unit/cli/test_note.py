@@ -184,6 +184,9 @@ class TestNoteSave:
             mock_client.notes.list = AsyncMock(
                 return_value=[make_note("note_123", "Test Note", "Original content")]
             )
+            mock_client.notes.get = AsyncMock(
+                return_value=make_note("note_123", "Test Note", "Original content")
+            )
             mock_client.notes.update = AsyncMock(return_value=None)
             mock_client_cls.return_value = mock_client
 
@@ -195,6 +198,10 @@ class TestNoteSave:
 
             assert result.exit_code == 0
             assert "Note updated" in result.output
+            # Existing title should be preserved, not passed as None
+            mock_client.notes.update.assert_called_once_with(
+                "nb_123", "note_123", content="New content", title="Test Note"
+            )
 
     def test_note_save_title(self, runner, mock_auth):
         with patch_client_for_module("note") as mock_client_cls:
@@ -202,6 +209,9 @@ class TestNoteSave:
             # Mock notes.list for resolve_note_id
             mock_client.notes.list = AsyncMock(
                 return_value=[make_note("note_123", "Old Title", "Content")]
+            )
+            mock_client.notes.get = AsyncMock(
+                return_value=make_note("note_123", "Old Title", "Content")
             )
             mock_client.notes.update = AsyncMock(return_value=None)
             mock_client_cls.return_value = mock_client
@@ -214,6 +224,44 @@ class TestNoteSave:
 
             assert result.exit_code == 0
             assert "Note updated" in result.output
+            # Existing content should be preserved, not passed as None
+            mock_client.notes.update.assert_called_once_with(
+                "nb_123", "note_123", content="Content", title="New Title"
+            )
+
+    def test_note_save_both_fields(self, runner, mock_auth):
+        """When both title and content are given, skip the get() fetch."""
+        with patch_client_for_module("note") as mock_client_cls:
+            mock_client = create_mock_client()
+            mock_client.notes.list = AsyncMock(
+                return_value=[make_note("note_123", "Old Title", "Old content")]
+            )
+            mock_client.notes.update = AsyncMock(return_value=None)
+            mock_client_cls.return_value = mock_client
+
+            with patch("notebooklm.cli.helpers.fetch_tokens", new_callable=AsyncMock) as mock_fetch:
+                mock_fetch.return_value = ("csrf", "session")
+                result = runner.invoke(
+                    cli,
+                    [
+                        "note",
+                        "save",
+                        "note_123",
+                        "--title",
+                        "New Title",
+                        "--content",
+                        "New content",
+                        "-n",
+                        "nb_123",
+                    ],
+                )
+
+            assert result.exit_code == 0
+            assert "Note updated" in result.output
+            mock_client.notes.update.assert_called_once_with(
+                "nb_123", "note_123", content="New content", title="New Title"
+            )
+            mock_client.notes.get.assert_not_called()
 
     def test_note_save_no_changes(self, runner, mock_auth):
         """Should show message when neither title nor content provided"""
