@@ -79,7 +79,7 @@ RPC Layer (rpc/)
 ```
 
 1. **RPC Layer** (`src/notebooklm/rpc/`):
-   - `types.py`: All RPC method IDs and enums (source of truth)
+   - `types.py`: All RPC method IDs and enums (source of truth). Key enums: `RPCMethod` (40+ method IDs), `ArtifactTypeCode` (AUDIO=1, REPORT=2, VIDEO=3, QUIZ=4, MIND_MAP=5, INFOGRAPHIC=7, SLIDE_DECK=8, DATA_TABLE=9), `ArtifactStatus` (PROCESSING=1, PENDING=2, COMPLETED=3, FAILED=4)
    - `encoder.py`: Request encoding — triple-nested array format
    - `decoder.py`: Response parsing, anti-XSSI stripping, error code mapping
 
@@ -193,13 +193,20 @@ async with await NotebookLMClient.from_storage() as client:
 Commands are organized as:
 - **Top-level**: `login`, `use`, `status`, `clear`, `list`, `create`, `ask`
 - **Grouped**: `source add`, `artifact list`, `generate audio`, `download video`, `note create`, `share`, `research`
+- **Agent integration**: `agent show <target>` (show instructions for "claude" or "codex" agents), `skill install`, `skill show`
 
 ### Exception Handling
 
-All exceptions inherit from `NotebookLMError`. Key hierarchy:
+All exceptions inherit from `NotebookLMError`. Full hierarchy:
+- `ValidationError` — Invalid arguments/config
+- `ConfigurationError` — Missing/invalid configuration
 - `NetworkError` — HTTP-level failures
-- `RPCError` → `AuthError`, `RateLimitError`, `ServerError`, `ClientError`, `RPCTimeoutError`
-- `NotebookNotFoundError`, `SourceError`, `ChatError`
+- `RPCTimeoutError` — Request timeout
+- `RPCError` → `DecodingError`, `UnknownRPCMethodError`, `AuthError`, `RateLimitError`, `ServerError`, `ClientError`
+- `NotebookError` → `NotebookNotFoundError`
+- `SourceError` → `SourceAddError`, `SourceProcessingError`, `SourceTimeoutError`, `SourceNotFoundError`
+- `ArtifactError` → `ArtifactNotFoundError`, `ArtifactNotReadyError`, `ArtifactParseError`, `ArtifactDownloadError`
+- `ChatError`
 
 ```python
 from notebooklm import NotebookLMError, AuthError, RateLimitError
@@ -247,6 +254,15 @@ except NotebookLMError as e:
 4. **CSRF tokens expire**: Use `client.refresh_auth()` or re-run `notebooklm login`
 5. **Rate limiting**: Add delays between bulk operations
 6. **Auth in CI/CD**: Use `NOTEBOOKLM_AUTH_JSON` env var instead of storage file
+
+## Agent Integration
+
+The library includes first-class support for LLM agent workflows:
+
+- **`SKILL.md`** (repo root): Claude Code skill definition — install into a project with `notebooklm skill install claude`
+- **`AGENTS.md`** (repo root): Instructions for Gemini/Codex agent environments — shown via `notebooklm agent show codex`
+- **Skill install paths**: `~/.claude/skills/notebooklm/SKILL.md` (user scope) or `.claude/skills/notebooklm/SKILL.md` (project scope)
+- **Target environments**: "claude" (→ SKILL.md) and "codex" (→ AGENTS.md/CODEX.md)
 
 ## Documentation
 
