@@ -2,7 +2,44 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-**IMPORTANT:** Follow documentation rules in [CONTRIBUTING.md](CONTRIBUTING.md) - especially the file creation and naming conventions.
+**IMPORTANT:** Follow the documentation rules below (sourced from [CONTRIBUTING.md](CONTRIBUTING.md)). These are binding constraints for AI agents working in this repo.
+
+## Documentation & File Rules for AI Agents
+
+### File Creation Rules
+
+1. **No Root Rule** — Never create `.md` files in the repository root unless explicitly instructed by the user.
+2. **Modify, Don't Fork** — Edit existing files; never create `FILE_v2.md`, `FILE_REFERENCE.md`, or `FILE_updated.md` duplicates.
+3. **Scratchpad Protocol** — All analysis, investigation logs, and intermediate work go in `docs/scratch/` with a date prefix: `YYYY-MM-DD-<context>.md`.
+4. **Consolidation First** — Before creating new docs, search for existing related docs and update them instead.
+
+### Protected Sections
+
+Never modify content between `PROTECTED` and `END PROTECTED` markers without explicit user approval:
+
+```python
+# PROTECTED: Do not modify without approval
+class RPCMethod(Enum):
+    ...
+# END PROTECTED
+```
+
+The same markers appear in Markdown files as HTML comments. The `RPCMethod` enum in `rpc/types.py` is the primary example.
+
+### Naming Conventions
+
+| Type | Format | Example |
+|------|--------|---------|
+| Root GitHub files | `UPPERCASE.md` | `README.md`, `CONTRIBUTING.md` |
+| Agent files | `UPPERCASE.md` | `CLAUDE.md`, `AGENTS.md` |
+| All other `docs/` files | `lowercase-kebab.md` | `cli-reference.md` |
+| Scratch files | `YYYY-MM-DD-context.md` | `2026-01-06-debug-auth.md` |
+
+### Status Headers
+
+Docs should include `**Status:** Active | Deprecated` and `**Last Updated:** YYYY-MM-DD`. Ignore files marked `Deprecated`.
+
+---
 
 ## Project Overview
 
@@ -229,6 +266,7 @@ except NotebookLMError as e:
 | `NOTEBOOKLM_AUTH_JSON` | Auth tokens as JSON string (CI/CD use) |
 | `NOTEBOOKLM_LOG_LEVEL` | `DEBUG`, `INFO`, `WARNING` (default), `ERROR` |
 | `NOTEBOOKLM_DEBUG_RPC` | Set to `1` for RPC-level debug logging (legacy alias for DEBUG) |
+| `NOTEBOOKLM_VCR_RECORD` | Set to `1` to record new VCR cassettes during integration tests |
 
 ## Testing Strategy
 
@@ -276,7 +314,7 @@ All docs use lowercase-kebab naming in `docs/`:
 - `docs/rpc-reference.md` — RPC payload structures
 - `docs/stability.md` — API versioning policy
 - `docs/releasing.md` — Release checklist
-- `docs/examples/` — Runnable example scripts
+- `docs/examples/` — Runnable example scripts: `quickstart.py`, `chat.py`, `notes.py`, `bulk-import.py`, `video.py`, `research-to-podcast.py`
 
 Scratch/investigation work goes in `docs/scratch/` with `YYYY-MM-DD-<context>.md` naming (see CONTRIBUTING.md).
 
@@ -284,6 +322,35 @@ Scratch/investigation work goes in `docs/scratch/` with `YYYY-MM-DD-<context>.md
 
 - **CLI**: Quick tasks, shell scripts, LLM agent automation
 - **Python API**: Application integration, complex workflows, async operations
+
+## CI/CD
+
+### Pre-commit Hooks
+
+`.pre-commit-config.yaml` runs ruff automatically on staged files. Install once with:
+
+```bash
+pip install pre-commit && pre-commit install
+```
+
+CI runs `pre-commit run --all-files` as the first quality gate before any tests.
+
+### GitHub Actions Workflows
+
+| Workflow | Trigger | What it does |
+|----------|---------|--------------|
+| `test.yml` | push/PR to `main` | Quality gate (pre-commit, mypy) + matrix tests on Ubuntu/macOS/Windows × Python 3.10–3.14 |
+| `nightly.yml` | Scheduled nightly | Full test run against live state |
+| `rpc-health.yml` | Scheduled | Validates RPC method IDs haven't broken — alerts on upstream API changes |
+| `publish.yml` | Release tag | Publishes to PyPI |
+| `testpypi-publish.yml` | Manual | Staging publish to TestPyPI |
+| `verify-artifacts.yml` | Post-publish | Verifies built wheel/sdist integrity |
+| `verify-package.yml` | Post-publish | Smoke-tests installed package |
+| `codeql.yml` | push/PR | SAST scanning |
+
+`rpc-health.yml` is particularly important — if it fails on `main`, RPC method IDs need updating in `rpc/types.py`.
+
+---
 
 ## Pull Request Workflow (REQUIRED)
 
